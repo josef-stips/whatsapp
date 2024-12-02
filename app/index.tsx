@@ -1,27 +1,26 @@
+import React from "react";
 import {
   View,
   Text,
-  StyleSheet,
   Image,
+  StyleSheet,
   TouchableOpacity,
   Linking,
 } from "react-native";
-import React from "react";
+import Colors from "@/constants/Colors";
 import { Link } from "expo-router";
 import welcomeImage from "@/assets/images/welcome.png";
-import Colors from "@/constants/Colors";
 const welcome_image = Image.resolveAssetSource(welcomeImage).uri;
 
-const Page = () => {
+const WelcomeScreen = () => {
   const openLink = () => {
     Linking.openURL("https://galaxies.dev");
   };
 
   return (
     <View style={styles.container}>
-      <Image source={{ uri: welcome_image }} style={styles.welcome}></Image>
-      <Text style={styles.headline}>Welcome to Whatsapp Clone</Text>
-
+      <Image source={{ uri: welcome_image }} style={styles.welcome} />
+      <Text style={styles.headline}>Welcome to WhatsApp Clone</Text>
       <Text style={styles.description}>
         Read our{" "}
         <Text style={styles.link} onPress={openLink}>
@@ -29,13 +28,12 @@ const Page = () => {
         </Text>
         . {'Tap "Agree & Continue" to accept the '}
         <Text style={styles.link} onPress={openLink}>
-          Terms and Service
+          Terms of Service
         </Text>
         .
       </Text>
-
       <Link href={"/otp"} replace asChild>
-        <TouchableOpacity>
+        <TouchableOpacity style={styles.button}>
           <Text style={styles.buttonText}>Agree & Continue</Text>
         </TouchableOpacity>
       </Link>
@@ -82,4 +80,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Page;
+export default WelcomeScreen;

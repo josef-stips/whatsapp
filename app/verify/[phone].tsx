@@ -1,14 +1,18 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import React, { useEffect, useState } from "react";
-import { useLocalSearchParams, Stack, router } from "expo-router";
+import Colors from "@/constants/Colors";
+import {
+  useSignUp,
+  isClerkAPIResponseError,
+  useSignIn,
+} from "@clerk/clerk-expo";
+import { Stack, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import {
   CodeField,
   Cursor,
   useBlurOnFulfill,
   useClearByFocusCell,
 } from "react-native-confirmation-code-field";
-import Colors from "@/constants/Colors";
-
 const CELL_COUNT = 6;
 
 const Page = () => {
@@ -17,23 +21,91 @@ const Page = () => {
     signin: string;
   }>();
   const [code, setCode] = useState("");
+
   const ref = useBlurOnFulfill({ value: code, cellCount: CELL_COUNT });
   const [props, getCellOnLayoutHandler] = useClearByFocusCell({
     value: code,
     setValue: setCode,
   });
+  const { signUp, setActive } = useSignUp();
+  const { signIn } = useSignIn();
 
   useEffect(() => {
     if (code.length === 6) {
-      console.log("code", code);
+      console.log("verify", code);
+
+      if (signin === "true") {
+        console.log("signin");
+        veryifySignIn();
+      } else {
+        verifyCode();
+      }
     }
   }, [code]);
 
-  const verifyCode = async () => {};
+  const verifyCode = async () => {
+    try {
+      await signUp!.attemptPhoneNumberVerification({
+        code,
+      });
 
-  const verifySignIn = async () => {};
+      await setActive!({ session: signUp!.createdSessionId });
+    } catch (err) {
+      console.log("error", JSON.stringify(err, null, 2));
+      if (isClerkAPIResponseError(err)) {
+        Alert.alert("Error", err.errors[0].message);
+      }
+    }
+  };
 
-  const resendCode = async () => {};
+  const veryifySignIn = async () => {
+    try {
+      await signIn!.attemptFirstFactor({
+        strategy: "phone_code",
+        code,
+      });
+
+      await setActive!({ session: signIn!.createdSessionId });
+    } catch (err) {
+      console.log("error", JSON.stringify(err, null, 2));
+      if (isClerkAPIResponseError(err)) {
+        Alert.alert("Error", err.errors[0].message);
+      }
+    }
+  };
+
+  const resendCode = async () => {
+    try {
+      if (signin === "true") {
+        const { supportedFirstFactors } = await signIn!.create({
+          identifier: phone,
+        });
+
+        const firstPhoneFactor: any = supportedFirstFactors.find(
+          (factor: any) => {
+            return factor.strategy === "phone_code";
+          }
+        );
+
+        const { phoneNumberId } = firstPhoneFactor;
+
+        await signIn!.prepareFirstFactor({
+          strategy: "phone_code",
+          phoneNumberId,
+        });
+      } else {
+        await signUp!.create({
+          phoneNumber: phone,
+        });
+        signUp!.preparePhoneNumberVerification();
+      }
+    } catch (err) {
+      console.log("error", JSON.stringify(err, null, 2));
+      if (isClerkAPIResponseError(err)) {
+        Alert.alert("Error", err.errors[0].message);
+      }
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -43,7 +115,7 @@ const Page = () => {
       </Text>
       <Text style={styles.legal}>
         To complete your phone number verification, please enter the 6-digit
-        activation code
+        activation code.
       </Text>
 
       <CodeField
@@ -71,7 +143,7 @@ const Page = () => {
 
       <TouchableOpacity style={styles.button} onPress={resendCode}>
         <Text style={styles.buttonText}>
-          Didn't recieve a verification code?
+          Didn't receive a verification code?
         </Text>
       </TouchableOpacity>
     </View>

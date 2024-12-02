@@ -1,21 +1,24 @@
-import {
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-  Linking,
-  TouchableOpacity,
-  ActivityIndicator,
-  TouchableWithoutFeedback,
-  Keyboard,
-} from "react-native";
-import React, { useState } from "react";
 import Colors from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MaskInput from "react-native-mask-input";
 import { useRouter } from "expo-router";
+import { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Linking,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import MaskInput from "react-native-mask-input";
+import {
+  isClerkAPIResponseError,
+  useSignIn,
+  useSignUp,
+} from "@clerk/clerk-expo";
 
 const GER_PHONE = [
   `+`,
@@ -37,97 +40,141 @@ const GER_PHONE = [
 ];
 
 const Page = () => {
-  const [loading, setLoading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
-  const keyboardVertivalOffset = Platform.OS === "ios" ? 90 : 0;
-  const { bottom } = useSafeAreaInsets();
+  const keyboardVerticalOffset = Platform.OS === "ios" ? 90 : 0;
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const { signUp, setActive } = useSignUp();
+  const { signIn } = useSignIn();
 
   const openLink = () => {
     Linking.openURL("https://galaxies.dev");
   };
 
   const sendOTP = async () => {
+    console.log("sendOTP", phoneNumber);
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
+      await signUp!.create({
+        phoneNumber,
+      });
+      console.log("TESafter createT: ", signUp!.createdSessionId);
+
+      signUp!.preparePhoneNumberVerification();
+
+      console.log("after prepare: ");
       router.push(`/verify/${phoneNumber}`);
-    }, 400);
+    } catch (err) {
+      console.log("error", JSON.stringify(err, null, 2));
+
+      if (isClerkAPIResponseError(err)) {
+        console.log(err.errors[0].code);
+        if (err.errors[0].code === "form_identifier_exists") {
+          // User signed up before
+          console.log("User signed up before");
+          await trySignIn();
+        } else {
+          setLoading(false);
+          Alert.alert("Error", err.errors[0].message);
+        }
+      }
+    }
   };
 
-  const trySignIn = async () => {};
+  const trySignIn = async () => {
+    console.log("trySignIn", phoneNumber);
+
+    const { supportedFirstFactors } = await signIn!.create({
+      identifier: phoneNumber,
+    });
+
+    const firstPhoneFactor: any = supportedFirstFactors.find((factor: any) => {
+      return factor.strategy === "phone_code";
+    });
+
+    const { phoneNumberId } = firstPhoneFactor;
+
+    await signIn!.prepareFirstFactor({
+      strategy: "phone_code",
+      phoneNumberId,
+    });
+
+    router.push(`/verify/${phoneNumber}?signin=true`);
+    setLoading(false);
+  };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView style={{ flex: 1 }}>
-        <View style={styles.container}>
-          {loading && (
-            <View style={[styles.loading]}>
-              <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={{ padding: 10, fontSize: 18 }}>Sending code...</Text>
-            </View>
-          )}
+    <KeyboardAvoidingView
+      keyboardVerticalOffset={keyboardVerticalOffset}
+      style={{ flex: 1 }}
+      behavior="padding"
+    >
+      {loading && (
+        <View style={[StyleSheet.absoluteFill, styles.loading]}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={{ fontSize: 18, padding: 10 }}>Sending code...</Text>
+        </View>
+      )}
 
-          <Text style={styles.description}>
-            Whatsapp will need to verify your account. Carrier charges may
-            apply.
-          </Text>
+      <View style={styles.container}>
+        <Text style={styles.description}>
+          WhatsApp will need to verify your account. Carrier charges may apply.
+        </Text>
 
-          <View style={styles.list}>
-            <View style={styles.listItem}>
-              <Text style={styles.listItemText}>Germany</Text>
-              <Ionicons name="chevron-forward" size={20} color={Colors.gray} />
-            </View>
-
-            <View style={styles.separator} />
-
-            <MaskInput
-              value={phoneNumber}
-              keyboardType="numeric"
-              autoFocus
-              placeholder="+49 your phone number"
-              onChangeText={(masked, unmasked) => {
-                setPhoneNumber(masked);
-              }}
-              mask={GER_PHONE}
-              style={styles.input}
-            />
+        <View style={styles.list}>
+          <View style={styles.listItem}>
+            <Text style={styles.listItemText}>Germany</Text>
+            <Ionicons name="chevron-forward" size={20} color={Colors.gray} />
           </View>
+          <View style={styles.separator} />
 
-          <Text style={styles.legal}>
-            You must be{" "}
-            <Text style={styles.link} onPress={openLink}>
-              at least 16 years old
-            </Text>{" "}
-            to register. Learn how Whatsapp works wth the{" "}
-            <Text style={styles.link} onPress={openLink}>
-              Meta Companies
-            </Text>
-            .
+          <MaskInput
+            value={phoneNumber}
+            keyboardType="numeric"
+            autoFocus
+            placeholder="+12 your phone number"
+            onChangeText={(masked, unmasked) => {
+              setPhoneNumber(masked);
+            }}
+            mask={GER_PHONE}
+            style={styles.input}
+          />
+        </View>
+
+        <Text style={styles.legal}>
+          You must be{" "}
+          <Text style={styles.link} onPress={openLink}>
+            at least 16 years old
+          </Text>{" "}
+          to register. Learn how WhatsApp works with the{" "}
+          <Text style={styles.link} onPress={openLink}>
+            Meta Companies
           </Text>
+          .
+        </Text>
 
-          <View style={{ flex: 1 }} />
+        <View style={{ flex: 1 }} />
 
-          <TouchableOpacity
-            onPress={phoneNumber !== "" ? sendOTP : undefined}
+        <TouchableOpacity
+          style={[
+            styles.button,
+            phoneNumber !== "" ? styles.enabled : null,
+            { marginBottom: 20 },
+          ]}
+          onPress={sendOTP}
+        >
+          <Text
             style={[
-              styles.button,
+              styles.buttonText,
               phoneNumber !== "" ? styles.enabled : null,
-              { marginBottom: bottom },
             ]}
           >
-            <Text
-              style={[
-                styles.buttonText,
-                phoneNumber !== "" ? styles.enabled : null,
-              ]}
-            >
-              Next
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+            Next
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -199,7 +246,6 @@ const styles = StyleSheet.create({
   },
 
   loading: {
-    ...StyleSheet.absoluteFillObject,
     zIndex: 10,
     backgroundColor: "#fff",
     justifyContent: "center",
