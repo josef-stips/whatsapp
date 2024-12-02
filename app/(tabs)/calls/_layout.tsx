@@ -2,6 +2,7 @@ import Colors from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { TouchableOpacity } from "react-native";
+
 const Layout = () => {
   return (
     <Stack>
@@ -10,9 +11,11 @@ const Layout = () => {
         options={{
           title: "Calls",
           headerLargeTitle: true,
-          headerShadowVisible: false,
-          headerStyle: { backgroundColor: Colors.background },
-          //   headerBlurEffect: "regular",
+          headerTransparent: true,
+          headerBlurEffect: "regular",
+          headerStyle: {
+            backgroundColor: Colors.background,
+          },
           headerSearchBarOptions: {
             placeholder: "Search",
           },
@@ -26,4 +29,5 @@ const Layout = () => {
     </Stack>
   );
 };
+
 export default Layout;

@@ -1,6 +1,12 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
-import { Link, Stack, useRouter, useSegments } from "expo-router";
+import {
+  Link,
+  Stack,
+  useNavigation,
+  useRouter,
+  useSegments,
+} from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
@@ -63,7 +69,7 @@ const InitialLayout = () => {
     const inTabsGroup = segments[0] === "(tabs)";
 
     if (isSignedIn && !inTabsGroup) {
-      router.replace("/(tabs)/calls");
+      router.replace("/(tabs)/chats");
     } else if (!isSignedIn) {
       router.replace("/");
     }
@@ -102,19 +108,22 @@ const InitialLayout = () => {
           headerStyle: {
             backgroundColor: Colors.background,
           },
-          headerRight: () => (
-            <Link href={"/(tabs)/chats"} asChild>
+          headerRight: () => {
+            const navigation = useNavigation();
+
+            return (
               <TouchableOpacity
+                onPress={() => navigation.goBack()}
                 style={{
                   backgroundColor: Colors.lightGray,
                   borderRadius: 20,
                   padding: 4,
                 }}
               >
-                <Ionicons name="close" color={Colors.gray} size={30} />
+                <Ionicons name="close" color={Colors.gray} size={20} />
               </TouchableOpacity>
-            </Link>
-          ),
+            );
+          },
           headerSearchBarOptions: {
             placeholder: "Search name or number",
             hideWhenScrolling: false,
